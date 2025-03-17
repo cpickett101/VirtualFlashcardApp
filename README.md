@@ -132,7 +132,7 @@ Contributions are welcome! Feel free to open issues or submit pull requests for 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE]([LICENSE](https://github.com/cpickett101/VirtualStudyApp/blob/main/MIT)) file for details.
+This project is licensed under the MIT License - see the [LICENSE]([LICENSE]) file for details.
 
 ## Acknowledgments
 
