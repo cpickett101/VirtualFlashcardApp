@@ -139,4 +139,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with assistance from Claude AI by Anthropic
 - Uses Tailwind CSS for styling
 - Inspired by traditional flashcard studying techniques
-- Created for studying GIS Data Manipulation concepts
