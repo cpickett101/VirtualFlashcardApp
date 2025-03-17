@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GIS Data Manipulation Flashcards</title>
+  <title>Flashcards</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -65,24 +65,11 @@
 
   <script type="text/babel">
     // Sample data - this would be loaded from a file in a real application
-    const sampleData = `# Data Manipulation Study Guide
-
-## Core Concepts
-
-### What is Data Manipulation?
-**Front:** What is Data Manipulation in the context of GIS?
-**Back:** Data manipulation includes the theories and techniques for managing the entire data lifecycle, from data collection to data format conversion, from data storage to data sharing and retrieval, to data provenance, data quality control, and data curation for long-term data archival and preservation.
-
-### Georeferencing
-**Front:** What is Georeferencing in GIS?
-**Back:** Georeferencing is a crucial process that aligns spatial data, such as satellite images or scanned maps, with real-world coordinates, placing them in their correct spatial location within a map coordinate system.
-
-### Transformation Methods
-**Front:** What is an Affine Transformation?
-**Back:** Affine Transformation includes scaling, rotation, translation, and skewing. It preserves straight lines and is commonly used for georeferencing.
-
-**Front:** What is a Polynomial Transformation?
-**Back:** Polynomial transformations (first-order, second-order, etc.) adjust the shape of the raster more flexibly. They are useful when the relationship between control points is nonlinear.`;
+    const sampleData = `front,back,category,subcategory
+"What is Data Manipulation in the context of GIS?","Data manipulation includes the theories and techniques for managing the entire data lifecycle, from data collection to data format conversion, from data storage to data sharing and retrieval, to data provenance, data quality control, and data curation for long-term data archival and preservation.","Core Concepts","What is Data Manipulation?"
+"What is Georeferencing in GIS?","Georeferencing is a crucial process that aligns spatial data, such as satellite images or scanned maps, with real-world coordinates, placing them in their correct spatial location within a map coordinate system.","Core Concepts","Georeferencing"
+"What is an Affine Transformation?","Affine Transformation includes scaling, rotation, translation, and skewing. It preserves straight lines and is commonly used for georeferencing.","Core Concepts","Transformation Methods"
+"What is a Polynomial Transformation?","Polynomial transformations (first-order, second-order, etc.) adjust the shape of the raster more flexibly. They are useful when the relationship between control points is nonlinear.","Core Concepts","Transformation Methods"`;
 
     const App = () => {
       const [flashcards, setFlashcards] = React.useState([]);
@@ -92,7 +79,7 @@
       const [selectedCategory, setSelectedCategory] = React.useState('All');
       const [filteredCards, setFilteredCards] = React.useState([]);
       const [loading, setLoading] = React.useState(true);
-      const [importFormat, setImportFormat] = React.useState('markdown');
+      const [importFormat, setImportFormat] = React.useState('csv');
       const [errorMessage, setErrorMessage] = React.useState('');
       const [notification, setNotification] = React.useState('');
       
@@ -257,10 +244,7 @@
       const loadInitialData = () => {
         try {
           setLoading(true);
-          const { cards, categories } = parseMarkdownData(sampleData);
-          
-          // Debug check for spaces
-          console.log("Sample cards loaded:", cards.map(card => ({front: card.front, len: card.front.length})));
+          const { cards, categories } = parseCsvData(sampleData);
           
           setCategories(['All', ...categories]);
           setFlashcards(cards);
@@ -496,17 +480,6 @@ Where:
                       type="radio"
                       className="form-radio"
                       name="format"
-                      value="markdown"
-                      checked={importFormat === 'markdown'}
-                      onChange={() => setImportFormat('markdown')}
-                    />
-                    <span className="ml-2">Markdown</span>
-                  </label>
-                  <label className="inline-flex items-center">
-                    <input
-                      type="radio"
-                      className="form-radio"
-                      name="format"
                       value="csv"
                       checked={importFormat === 'csv'}
                       onChange={() => setImportFormat('csv')}
@@ -523,6 +496,17 @@ Where:
                       onChange={() => setImportFormat('json')}
                     />
                     <span className="ml-2">JSON</span>
+                  </label>
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      className="form-radio"
+                      name="format"
+                      value="markdown"
+                      checked={importFormat === 'markdown'}
+                      onChange={() => setImportFormat('markdown')}
+                    />
+                    <span className="ml-2">Markdown</span>
                   </label>
                 </div>
               </div>
@@ -573,11 +557,11 @@ Where:
 
       return (
         <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4">
-          <h1 className="text-3xl font-bold text-blue-800 mb-6">GIS Data Manipulation Flashcards</h1>
+          <h1 className="text-3xl font-bold text-blue-800 mb-6">Flashcards</h1>
           
           <div className="w-full max-w-3xl mb-1 flex justify-center">
             <a 
-              href="https://github.com/cpickett101/VirtualStudyApp/" 
+              href="https://github.com/cpickett101/VirtualStudyApp" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:text-blue-800"
@@ -591,7 +575,7 @@ Where:
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:text-blue-800"
             >
-              Created by Christopher Pickett
+              Created by Christopher Pickett - 2025
             </a>
           </div>
           
@@ -619,9 +603,9 @@ Where:
                   onChange={(e) => setImportFormat(e.target.value)}
                   className="p-2 border border-gray-300 rounded bg-white"
                 >
-                  <option value="markdown">Markdown</option>
-                  <option value="csv">CSV</option>
+                <option value="csv">CSV</option>
                   <option value="json">JSON</option>
+                  <option value="markdown">Markdown</option>
                 </select>
               </div>
               
