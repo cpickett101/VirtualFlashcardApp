@@ -2,7 +2,7 @@
 
 A web-based flashcard application for studying concepts and other subjects. This application allows users to create, import, and study flashcards with an interactive interface.
 
-![Flashcard App Screenshot](https://user-images.githubusercontent.com/your-username/your-repo-name/main/screenshot.png)
+![Flashcard App Screenshot]([https://user-images.githubusercontent.com/your-username/your-repo-name/main/screenshot.png](https://github.com/cpickett101/VirtualStudyApp/blob/main/Virtual_Flashcard_App.png?raw=true))
 
 ## Features
 
