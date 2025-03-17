@@ -1,8 +1,8 @@
-# GIS Data Manipulation Flashcards
+# Virtual Flashcard Application
 
-A web-based flashcard application for studying GIS (Geographic Information System) concepts and other subjects. This application allows users to create, import, and study flashcards with an interactive interface.
+A web-based flashcard application for studying concepts and other subjects. This application allows users to create, import, and study flashcards with an interactive interface.
 
-![GIS Flashcards App Screenshot](https://user-images.githubusercontent.com/your-username/your-repo-name/main/screenshot.png)
+![Flashcard App Screenshot](https://user-images.githubusercontent.com/your-username/your-repo-name/main/screenshot.png)
 
 ## Features
 
