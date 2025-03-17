@@ -104,8 +104,8 @@
         
         // Replace common problematic characters and encoding issues
         return text
-          // Replace   and other common encoding issues
-          .replace(/ /g, '')
+          // Replace � and other common encoding issues
+          .replace(/�/g, '')
           .replace(/[\u2018\u2019]/g, "'") // Smart single quotes
           .replace(/[\u201C\u201D]/g, '"') // Smart double quotes
           .replace(/\u2026/g, '...') // Ellipsis
@@ -150,16 +150,18 @@
             continue;
           }
           
-          // Check for flashcard content
+          // Check for flashcard content - fix for missing spaces
           if (line.includes('**Front:**')) {
-            let frontContent = line.replace('**Front:** ', '');
+            // Use more careful replacement to preserve spaces
+            let frontContent = line.replace(/\*\*Front:\*\*\s*/, '');
             
             // Look for the corresponding Back content
             let backContent = '';
             let j = i + 1;
             while (j < lines.length && !lines[j].includes('**Front:**')) {
               if (lines[j].includes('**Back:**')) {
-                backContent = lines[j].replace('**Back:** ', '');
+                // Use more careful replacement to preserve spaces
+                backContent = lines[j].replace(/\*\*Back:\*\*\s*/, '');
                 
                 // Collect additional lines of the back content until next Front or empty line
                 j++;
@@ -257,6 +259,9 @@
           setLoading(true);
           const { cards, categories } = parseMarkdownData(sampleData);
           
+          // Debug check for spaces
+          console.log("Sample cards loaded:", cards.map(card => ({front: card.front, len: card.front.length})));
+          
           setCategories(['All', ...categories]);
           setFlashcards(cards);
           setFilteredCards(cards);
@@ -344,7 +349,7 @@
               // Show success notification
               const successCount = result.cards.length;
               setNotification(`Successfully imported ${successCount} flashcards${
-                successCount > 0 && result.cards.some(card => card.front.includes(' ') || card.back.includes(' '))
+                successCount > 0 && result.cards.some(card => card.front.includes('�') || card.back.includes('�'))
                 ? ' (some encoding issues were automatically fixed)'
                 : ''
               }`);
@@ -572,7 +577,7 @@ Where:
           
           <div className="w-full max-w-3xl mb-1 flex justify-center">
             <a 
-              href="https://github.com/cpickett101/VirtualStudyApp" 
+              href="https://github.com/yourusername/gis-flashcards" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:text-blue-800"
@@ -581,12 +586,12 @@ Where:
             </a>
             <span className="mx-2 text-gray-400">|</span>
             <a 
-              href="https://www.linkedin.com/in/christopher-p-a4908979/" 
+              href="https://www.linkedin.com/in/yourprofile" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:text-blue-800"
             >
-              Created by Christopher Pickett
+              Created by Your Name
             </a>
           </div>
           
