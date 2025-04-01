@@ -84,6 +84,12 @@
     .main-content-transition {
       transition: margin-left 0.3s ease-in-out;
     }
+
+    /* <<< Added CSS Rule >>> */
+    .preserve-whitespace {
+      white-space: pre-wrap; /* Preserve whitespace and wrap lines */
+      word-wrap: break-word; /* Ensure long words without spaces also wrap */
+    }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen overflow-x-hidden">
@@ -92,9 +98,17 @@
   <script type="text/babel">
     // Sample data - this would be loaded from a file in a real application
     const sampleData = `front,back,category,subcategory
-"What is Data Manipulation in the context of GIS?","Data manipulation includes the theories and techniques for managing the entire data lifecycle, from data collection to data format conversion, from data storage to data sharing and retrieval, to data provenance, data quality control, and data curation for long-term data archival and preservation.","Core Concepts","What is Data Manipulation?"
+"What is Data Manipulation in the context of GIS?","Data manipulation includes the theories and techniques for managing the entire data lifecycle, from data collection to data format conversion,
+from data storage to data sharing and retrieval,
+to data provenance, data quality control, and data curation for long-term data archival and preservation.","Core Concepts","What is Data Manipulation?"
 "What is Georeferencing in GIS?","Georeferencing is a crucial process that aligns spatial data, such as satellite images or scanned maps, with real-world coordinates, placing them in their correct spatial location within a map coordinate system.","Core Concepts","Georeferencing"
-"What is an Affine Transformation?","Affine Transformation includes scaling, rotation, translation, and skewing. It preserves straight lines and is commonly used for georeferencing.","Core Concepts","Transformation Methods"
+"What is an Affine Transformation?","Affine Transformation includes:
+- scaling
+- rotation
+- translation
+- skewing.
+
+It preserves straight lines and is commonly used for georeferencing.","Core Concepts","Transformation Methods"
 "What is a Polynomial Transformation?","Polynomial transformations (first-order, second-order, etc.) adjust the shape of the raster more flexibly. They are useful when the relationship between control points is nonlinear.","Core Concepts","Transformation Methods"`;
 
     const App = () => {
@@ -119,7 +133,7 @@
 
       // Function to clean text and fix encoding issues
       const cleanText = (text) => {
-        if (!text) return '';
+        if (typeof text !== 'string') return ''; // Ensure input is a string
 
         // Replace common problematic characters and encoding issues
         return text
@@ -134,7 +148,7 @@
           .replace(/\u2022/g, '*') // Bullet
           .replace(/[\u00AB\u00BB]/g, '"') // Guillemets
           .replace(/[\u2039\u203A]/g, "'") // Single guillemets
-          // You can add more replacements as needed
+          // Basic trim - consider if internal multiple spaces should be collapsed (usually not for flashcards)
           .trim();
       };
 
@@ -150,10 +164,13 @@
         // Extract categories and subcategories
         const lines = text.split('\n');
         for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
+          // Use original line without trim here to preserve leading spaces if needed by format,
+          // but trim for comparisons/matches
+          const line = lines[i];
+          const trimmedLine = line.trim();
 
           // Check for main category
-          const categoryMatch = line.match(/^## (.+)$/);
+          const categoryMatch = trimmedLine.match(/^## (.+)$/);
           if (categoryMatch) {
             currentCategory = categoryMatch[1].trim();
             allCategories.add(currentCategory);
@@ -162,42 +179,50 @@
           }
 
           // Check for subcategory
-          const subcategoryMatch = line.match(/^### (.+)$/);
+          const subcategoryMatch = trimmedLine.match(/^### (.+)$/);
           if (subcategoryMatch) {
             currentSubcategory = subcategoryMatch[1].trim();
             continue;
           }
 
           // Check for flashcard content
-          if (line.toLowerCase().startsWith('**front:**')) {
-            let frontContent = line.substring('**Front:**'.length).trim();
+          if (trimmedLine.toLowerCase().startsWith('**front:**')) {
+            // Get content after marker, preserve original spacing from the line
+            let frontContent = line.substring(line.toLowerCase().indexOf('**front:**') + '**Front:**'.length).trimStart(); // Trim only leading space after marker
 
             // Look for the corresponding Back content
-            let backContent = '';
+            let backContentLines = [];
             let j = i + 1;
-            while (j < lines.length && !lines[j].trim().toLowerCase().startsWith('**front:**')) {
-                const nextLine = lines[j].trim();
-                if (nextLine.toLowerCase().startsWith('**back:**')) {
-                    backContent = nextLine.substring('**Back:**'.length).trim();
-                    // Collect additional lines of the back content until next Front or category marker or empty line
-                    j++;
-                    while (j < lines.length && lines[j].trim() !== '' && !lines[j].trim().startsWith('## ') && !lines[j].trim().startsWith('### ') && !lines[j].trim().toLowerCase().startsWith('**front:**')) {
-                      backContent += '\n' + lines[j].trim();
-                      j++;
-                    }
-                    break; // Found back, stop searching
+            let backMarkerFound = false;
+            while (j < lines.length) {
+                const nextLine = lines[j];
+                const trimmedNextLine = nextLine.trim();
+
+                if (trimmedNextLine.toLowerCase().startsWith('**back:**')) {
+                    // Found the back marker, take content after it from this line
+                    backContentLines.push(nextLine.substring(nextLine.toLowerCase().indexOf('**back:**') + '**Back:**'.length).trimStart());
+                    backMarkerFound = true;
+                } else if (backMarkerFound) {
+                    // If back marker was found, collect subsequent lines until next card/category or empty line
+                     if (trimmedNextLine === '' || trimmedNextLine.startsWith('## ') || trimmedNextLine.startsWith('### ') || trimmedNextLine.toLowerCase().startsWith('**front:**')) {
+                        break; // Stop collecting for this back
+                     }
+                     backContentLines.push(nextLine); // Add the whole line to preserve indentation
+                } else if (trimmedNextLine.startsWith('## ') || trimmedNextLine.startsWith('### ') || trimmedNextLine.toLowerCase().startsWith('**front:**')) {
+                     // If we hit another marker before finding **Back:**, this front has no back
+                     break;
                 }
                 j++;
             }
 
-            if (backContent) {
+            if (backMarkerFound) {
               frontBackPairs.push({
-                front: cleanText(frontContent),
-                back: cleanText(backContent),
+                front: cleanText(frontContent), // Clean final content
+                back: cleanText(backContentLines.join('\n')), // Join lines and clean final
                 category: currentCategory,
                 subcategory: currentSubcategory
               });
-              i = j - 1; // Move to the last line processed for back content
+              i = j - 1; // Move index past the processed lines
             }
           }
         }
@@ -206,8 +231,8 @@
       };
 
       const parseCsvData = (text) => {
-        // Clean the text before parsing
-        text = cleanText(text);
+        // Clean the text before parsing - Be careful not to over-clean CSV structure
+        // text = cleanText(text); // Maybe only clean *after* parsing cells
 
         const result = Papa.parse(text, {
           header: true,
@@ -229,8 +254,8 @@
         }
 
         const frontBackPairs = result.data.map(row => ({
-          front: cleanText(row.front),
-          back: cleanText(row.back),
+          front: cleanText(row.front), // Clean cell content
+          back: cleanText(row.back),   // Clean cell content
           category: cleanText(row.category) || 'Uncategorized',
           subcategory: cleanText(row.subcategory) || ''
         }));
@@ -242,14 +267,19 @@
 
       const parseJsonData = (text) => {
         try {
-          // Clean the text before parsing (may help with BOM or leading/trailing whitespace)
-          text = cleanText(text);
+          // Don't clean JSON structure itself, only the values later
+          // text = cleanText(text);
 
           let data;
           try {
              data = JSON.parse(text);
           } catch (parseError) {
-              throw new Error('Invalid JSON format: ' + parseError.message);
+              // Try cleaning BOM / leading-trailing whitespace before failing
+              try {
+                  data = JSON.parse(cleanText(text));
+              } catch (innerError) {
+                   throw new Error('Invalid JSON format: ' + parseError.message);
+              }
           }
 
 
@@ -258,8 +288,8 @@
           }
 
           const frontBackPairs = data.map(item => ({
-            front: cleanText(item.front || item.question || ''),
-            back: cleanText(item.back || item.answer || ''),
+            front: cleanText(item.front || item.question || ''), // Clean value
+            back: cleanText(item.back || item.answer || ''),   // Clean value
             category: cleanText(item.category) || 'Uncategorized',
             subcategory: cleanText(item.subcategory) || ''
           }));
@@ -288,12 +318,18 @@
          // Add resize listener to handle sidebar state changes
         const handleResize = () => {
             if (window.innerWidth >= 768) {
-                setSidebarOpen(true); // Keep open on desktop unless explicitly closed
+                 // On desktop, only force open if it wasn't manually closed perhaps?
+                 // For simplicity, let's keep it always open on >= md for now.
+                 // Could add another state variable `isSidebarManuallyClosed` if needed.
+                setSidebarOpen(true);
             } else {
-                setSidebarOpen(false); // Default closed on mobile
+                // On mobile, respect the current state unless resizing makes it desktop
+                // setSidebarOpen(false); // Let's keep the toggle state persistent on mobile resize
             }
         };
         window.addEventListener('resize', handleResize);
+        // Initial check
+        handleResize();
         return () => window.removeEventListener('resize', handleResize);
       }, []);
 
@@ -357,8 +393,8 @@
           setIsFlipped(false);
         } else {
             // Optional: Loop back to start
-            // setCurrentCardIndex(0);
-            // setIsFlipped(false);
+            setCurrentCardIndex(0);
+            setIsFlipped(false);
         }
       };
 
@@ -368,17 +404,21 @@
           setIsFlipped(false);
         } else {
              // Optional: Loop back to end
-             // if (filteredCards.length > 0) {
-             //   setCurrentCardIndex(filteredCards.length - 1);
-             //   setIsFlipped(false);
-             // }
+             if (filteredCards.length > 0) {
+               setCurrentCardIndex(filteredCards.length - 1);
+               setIsFlipped(false);
+             }
         }
       };
 
       const shuffleCards = () => {
+        const currentCard = filteredCards[currentCardIndex];
+        const otherCards = filteredCards.filter((_, index) => index !== currentCardIndex);
+        const shuffledOthers = _.shuffle(otherCards);
+        // Keep current card at the start? Or fully shuffle? Let's fully shuffle.
         const shuffled = _.shuffle([...filteredCards]);
         setFilteredCards(shuffled);
-        setCurrentCardIndex(0);
+        setCurrentCardIndex(0); // Go to the start of the shuffled deck
         setIsFlipped(false);
         setNotification('Cards shuffled!');
         setTimeout(() => setNotification(''), 2000);
@@ -398,21 +438,18 @@
 
         // Determine format from extension if not explicitly set (or use selected format)
         const fileExtension = file.name.split('.').pop().toLowerCase();
-        let currentParseFormat = importFormat;
-        if (['csv', 'json', 'md', 'txt'].includes(fileExtension)) {
-            if (fileExtension === 'md' || fileExtension === 'txt') {
-                 currentParseFormat = 'markdown';
-            } else {
-                 currentParseFormat = fileExtension;
-            }
-            // Update the radio button selection to match detected format
-            setImportFormat(currentParseFormat);
-        } else {
-             setErrorMessage(`Unsupported file type: .${fileExtension}. Please select CSV, JSON, or Markdown/Text.`);
-             setLoading(false);
-             e.target.value = ''; // Reset file input
-             return;
+        let currentParseFormat = importFormat; // Default to selected format
+
+        // Attempt to guess format from extension
+        if (fileExtension === 'csv') {
+            currentParseFormat = 'csv';
+        } else if (fileExtension === 'json') {
+            currentParseFormat = 'json';
+        } else if (fileExtension === 'md' || fileExtension === 'txt') {
+            currentParseFormat = 'markdown';
         }
+        // Update the radio button selection to match detected/used format
+        setImportFormat(currentParseFormat);
 
 
         const reader = new FileReader();
@@ -443,8 +480,6 @@
               setErrorMessage('');
 
               // Add to saved files
-              const hasEncodingIssues = result.cards.some(card => (card.front && card.front.includes(' ')) || (card.back && card.back.includes(' ')));
-
               const newFile = {
                 name: file.name,
                 format: currentParseFormat,
@@ -452,7 +487,6 @@
                 cardCount: result.cards.length,
                 categories: result.categories,
                 date: new Date(),
-                hasEncodingIssues: hasEncodingIssues, // Maybe less relevant now with cleaning
                 isDefault: false
               };
 
@@ -484,9 +518,7 @@
             }
           } catch (error) {
             console.error('Error processing file:', error);
-            setErrorMessage(`Failed to process file: ${error.message}`);
-            // Optionally revert to previous state or load sample data
-            // loadSavedFile(activeFileIndex); // Revert to previously active file?
+            setErrorMessage(`Failed to process file "${file.name}": ${error.message}`);
           } finally {
             setLoading(false);
             // Reset file input value
@@ -496,8 +528,8 @@
           }
         };
 
-        reader.onerror = () => {
-          setErrorMessage('Failed to read file.');
+        reader.onerror = (error) => {
+          setErrorMessage(`Failed to read file: ${error.message || 'Unknown read error'}`);
           setLoading(false);
            if(fileInputRef.current) {
                 fileInputRef.current.value = '';
@@ -509,11 +541,12 @@
       };
 
       const triggerFileInput = () => {
+        setErrorMessage(''); // Clear errors before opening dialog
         fileInputRef.current.click();
       };
 
       const loadSavedFile = (index) => {
-        if (index < 0 || index >= savedFiles.length) return;
+        if (index < 0 || index >= savedFiles.length || index === activeFileIndex) return; // Don't reload if already active
 
         try {
           setLoading(true);
@@ -555,7 +588,8 @@
       };
 
       const deleteSavedFile = (index) => {
-        // Don't allow deleting the default sample if it's the only one left maybe? Or just prevent it always.
+        if (index < 0 || index >= savedFiles.length) return;
+
         if (savedFiles[index].isDefault) {
           setNotification("Cannot delete the default sample data.");
           setTimeout(() => setNotification(''), 3000);
@@ -564,25 +598,39 @@
 
         const fileToDelete = savedFiles[index];
         const newSavedFiles = savedFiles.filter((_, i) => i !== index);
-        setSavedFiles(newSavedFiles);
 
-        // If we deleted the active file
+
+        // Determine the next active index *before* setting state
+        let nextActiveIndex = activeFileIndex;
         if (index === activeFileIndex) {
-          if (newSavedFiles.length > 0) {
-            // Load the first available file (could be the sample)
-            loadSavedFile(0);
-          } else {
-            // If no files left, reset to empty state
-            setFlashcards([]);
-            setCategories(['All']);
-            setFilteredCards([]);
-            setActiveFileIndex(-1);
-            setErrorMessage("No flashcard sets loaded. Please import a file.");
-          }
+            // If we deleted the active file
+            if (newSavedFiles.length > 0) {
+                // Make the first file active (could be index 0 or adjusted index)
+                nextActiveIndex = 0; // Simplest approach: always go to first
+            } else {
+                nextActiveIndex = -1; // No files left
+            }
         } else if (index < activeFileIndex) {
-          // If we deleted a file before the active one, adjust active index
-          setActiveFileIndex(activeFileIndex - 1);
+            // If we deleted a file *before* the active one, decrement active index
+            nextActiveIndex = activeFileIndex - 1;
         }
+         // If we deleted *after* the active one, the index remains correct
+
+        setSavedFiles(newSavedFiles);
+        setActiveFileIndex(nextActiveIndex); // Update active index state
+
+        // Load the new active file if one exists and was changed
+        if (nextActiveIndex !== -1 && index === activeFileIndex) {
+            // Need to load the content for the *new* active index
+             loadSavedFile(nextActiveIndex); // Reload content for the new index 0
+        } else if (nextActiveIndex === -1) {
+            // If no files left, clear the view
+             setFlashcards([]);
+             setCategories(['All']);
+             setFilteredCards([]);
+             setErrorMessage("No flashcard sets loaded. Please import a file.");
+        }
+
 
         setNotification(`File "${fileToDelete.name}" deleted.`);
         setTimeout(() => setNotification(''), 3000);
@@ -611,7 +659,8 @@ Potentially multiple lines for the back.
           case 'csv':
             return `front,back,category,subcategory
 "Question 1 Front","Answer 1 Back","Category 1 Name","Subcategory 1.1"
-"Question 2 Front","Answer 2 Back with commas, maybe","Category 1 Name","Subcategory 1.1"
+"Question 2 Front","Answer 2 Back with commas,
+and newlines preserved.","Category 1 Name","Subcategory 1.1"
 "Question 3 Front (No Subcategory)","Answer 3 Back","Category 2 Name",
 "Question 4 Front","Answer 4 Back (No Category)","",
 `;
@@ -626,7 +675,7 @@ Potentially multiple lines for the back.
               },
               {
                 "question": "Question 2 Front (using 'question')",
-                "answer": "Answer 2 Back (using 'answer')",
+                "answer": "Answer 2 Back (using 'answer')\nWith newlines preserved.",
                 "category": "Category 1 Name",
                 "subcategory": "Subcategory 1.1"
               },
@@ -652,7 +701,9 @@ Potentially multiple lines for the back.
             setNotification(content, 3000); // Show message if format not selected (shouldn't happen with default)
             return;
         }
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' }); // Specify charset
+        // Add BOM for CSV to help Excel with UTF-8
+        const bom = importFormat === 'csv' ? "\uFEFF" : "";
+        const blob = new Blob([bom + content], { type: 'text/plain;charset=utf-8' }); // Specify charset
         const url = URL.createObjectURL(blob);
 
         const a = document.createElement('a');
@@ -694,7 +745,7 @@ Potentially multiple lines for the back.
       };
 
       // Loading State UI
-      if (loading && flashcards.length === 0) { // Only show full screen loading initially
+      if (loading && savedFiles.length === 0) { // Only show full screen loading on very first load
         return (
           <div className="flex items-center justify-center h-screen bg-gray-100">
             <div className="text-center p-6 bg-white rounded-lg shadow-lg">
@@ -705,8 +756,8 @@ Potentially multiple lines for the back.
         );
       }
 
-      // Empty State / Initial Load UI
-      if (flashcards.length === 0 && !loading) { // Show if loading finished but no cards
+      // Empty State / Initial Load UI (Only if no saved files exist after loading)
+      if (savedFiles.length === 0 && !loading) { // Show if loading finished but no files ever loaded
         return (
           <div className="flex items-center justify-center h-screen bg-gray-100">
             <div className="text-center p-6 bg-white rounded-lg shadow-lg max-w-md">
@@ -776,7 +827,7 @@ Potentially multiple lines for the back.
           {/* Sidebar */}
           <div className={`fixed md:static h-full z-30 w-64 bg-white shadow-lg sidebar-transition flex flex-col ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
               {/* Sidebar Header */}
-              <div className="p-4 border-b flex justify-between items-center">
+              <div className="p-4 border-b flex justify-between items-center flex-shrink-0">
                 <h2 className="text-lg font-bold text-blue-800">Files</h2>
                  {/* Close button for mobile */}
                 <button className="md:hidden text-gray-500 hover:text-gray-800" onClick={toggleSidebar}>✕</button>
@@ -784,10 +835,11 @@ Potentially multiple lines for the back.
 
               {/* Saved Files List */}
               <div className="flex-grow overflow-y-auto p-2">
-                {savedFiles.length === 0 && <p className="text-center text-gray-500 p-4 text-sm">No files loaded yet.</p>}
+                {savedFiles.length === 0 && !loading && <p className="text-center text-gray-500 p-4 text-sm">No files loaded yet.</p>}
+                {loading && savedFiles.length > 0 && <p className="text-center text-gray-500 p-4 text-sm animate-pulse">Loading...</p> }
                 {savedFiles.map((file, index) => (
                   <div
-                    key={index}
+                    key={index + '-' + file.name} // Add name to key for better stability if list order changes
                     className={`flex items-center justify-between p-2 mb-1 rounded cursor-pointer transition-all duration-150 ease-in-out border ${
                       index === activeFileIndex
                         ? 'bg-blue-100 border-blue-300 shadow-sm'
@@ -825,7 +877,7 @@ Potentially multiple lines for the back.
               </div>
 
               {/* Sidebar Footer (Import Section) */}
-              <div className="p-3 border-t bg-gray-50">
+              <div className="p-3 border-t bg-gray-50 flex-shrink-0">
                 <button
                   onClick={triggerFileInput}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors mb-2 text-sm"
@@ -894,13 +946,13 @@ Potentially multiple lines for the back.
                     {errorMessage && (
                       <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm flex justify-between items-center">
                          <span>{errorMessage}</span>
-                         <button onClick={() => setErrorMessage('')} className="ml-2 text-red-500 hover:text-red-800">✕</button>
+                         <button onClick={() => setErrorMessage('')} className="ml-2 text-red-500 hover:text-red-800 font-bold">✕</button>
                       </div>
                     )}
                     {notification && (
                       <div className="p-3 bg-green-100 text-green-700 rounded-lg text-sm flex justify-between items-center">
                         <span>{notification}</span>
-                        <button onClick={() => setNotification('')} className="ml-2 text-green-500 hover:text-green-800">✕</button>
+                        <button onClick={() => setNotification('')} className="ml-2 text-green-500 hover:text-green-800 font-bold">✕</button>
                       </div>
                     )}
                 </div>
@@ -917,6 +969,7 @@ Potentially multiple lines for the back.
                           value={selectedCategory}
                           onChange={handleCategoryChange}
                           className="flex-grow p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          disabled={categories.length <= 1} // Disable if only 'All' exists
                         >
                           {categories.map((category, index) => (
                             <option key={index} value={category}>{category}</option>
@@ -926,7 +979,7 @@ Potentially multiple lines for the back.
                       <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
                         <button
                           onClick={shuffleCards}
-                          className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm shadow"
+                          className="px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Shuffle cards in current category"
                           disabled={filteredCards.length < 2} // Disable if less than 2 cards
                         >
@@ -955,47 +1008,54 @@ Potentially multiple lines for the back.
                               {/* Card Front */}
                               <div className="card-front bg-white p-6 rounded-xl shadow-lg flex flex-col border border-gray-200">
                                  {/* Optional Subcategory/Context on Front */}
-                                <div className="absolute top-3 left-3 text-xs text-gray-400">
+                                <div className="absolute top-3 left-3 text-xs text-gray-400 z-10"> {/* Ensure context is above content */}
                                   {filteredCards[currentCardIndex].category !== 'All' && filteredCards[currentCardIndex].category !== 'Uncategorized' && (
-                                      <span className="bg-gray-100 px-1.5 py-0.5 rounded mr-1">{filteredCards[currentCardIndex].category}</span>
+                                      <span className="bg-gray-100 px-1.5 py-0.5 rounded mr-1 shadow-sm">{filteredCards[currentCardIndex].category}</span>
                                   )}
                                    {filteredCards[currentCardIndex].subcategory && (
-                                    <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">{filteredCards[currentCardIndex].subcategory}</span>
+                                    <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded shadow-sm">{filteredCards[currentCardIndex].subcategory}</span>
                                   )}
                                 </div>
 
                                 <div className="flex-grow flex items-center justify-center pt-6">
-                                  <div className="text-xl md:text-2xl font-semibold text-center text-gray-800 break-words">
+                                  {/* <<< APPLY CLASS HERE >>> */}
+                                  <div className="text-xl md:text-2xl font-semibold text-center text-gray-800 break-words preserve-whitespace px-4"> {/* Added preserve-whitespace and padding */}
                                     {filteredCards[currentCardIndex].front}
                                   </div>
                                 </div>
-                                <div className="text-center text-gray-400 text-xs mt-4 group-hover:text-blue-500">Click to flip</div>
+                                <div className="text-center text-gray-400 text-xs mt-4 group-hover:text-blue-500 flex-shrink-0">Click to flip</div>
                               </div>
 
                               {/* Card Back */}
                               <div className="card-back bg-blue-50 p-6 rounded-xl shadow-lg flex flex-col border border-blue-200">
-                                <div className="flex-grow flex items-center justify-center overflow-y-auto">
-                                   {/* Render back content, handling newlines */}
-                                   <div className="text-base md:text-lg text-gray-900">
+                                <div className="flex-grow flex items-center justify-center overflow-y-auto py-4"> {/* Added padding */}
+                                   {/* <<< APPLY CLASS HERE >>> */}
+                                   {/* Apply to the container div */}
+                                   <div className="text-base md:text-lg text-gray-900 preserve-whitespace px-4"> {/* Added preserve-whitespace and padding */}
                                     {filteredCards[currentCardIndex].back.split('\n').map((line, index, arr) => (
+                                      // No need for class on each p if parent has it
                                       <p key={index} className={index === arr.length - 1 ? '' : 'mb-2'}>{line || '\u00A0'}</p> // Render empty lines as non-breaking space
                                     ))}
                                    </div>
                                 </div>
-                                <div className="text-center text-gray-500 text-xs mt-4 group-hover:text-blue-600">Click to flip back</div>
+                                <div className="text-center text-gray-500 text-xs mt-4 group-hover:text-blue-600 flex-shrink-0">Click to flip back</div>
                               </div>
                             </div>
                           </div>
-                           {/* Context Display Below Card */}
-                          {filteredCards[currentCardIndex]?.subcategory && (
+                           {/* Context Display Below Card - Removed as it's now on card face */}
+                          {/* {filteredCards[currentCardIndex]?.subcategory && (
                                <p className="text-center text-xs text-gray-500 italic mb-4">
                                   Subcategory: {filteredCards[currentCardIndex].subcategory}
                                </p>
-                           )}
+                           )} */}
                       </div> // End card container
                     ) : (
-                      <div className="text-center text-gray-500 mt-10 p-6 bg-white rounded-lg shadow">
-                          No cards match the selected category "{selectedCategory}".
+                      <div className="text-center text-gray-500 mt-10 p-6 bg-white rounded-lg shadow min-h-[20rem] flex items-center justify-center"> {/* Added min-height */}
+                           {activeFileIndex === -1 ? (
+                               <span>No flashcard set loaded. Import a file using the sidebar.</span>
+                           ) : (
+                               <span>No cards match the selected category "{selectedCategory}". Try 'All' or import a different file.</span>
+                           )}
                       </div>
                     )}
 
@@ -1004,16 +1064,16 @@ Potentially multiple lines for the back.
                       <div className="flex justify-center space-x-4 mt-2">
                         <button
                           onClick={prevCard}
-                          disabled={currentCardIndex === 0}
-                          className={`px-5 py-2 rounded font-medium text-sm shadow transition-colors duration-150 ${currentCardIndex === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-white text-blue-700 border border-blue-300 hover:bg-blue-50'}`}
+                          // disabled={currentCardIndex === 0} // Loop instead of disable
+                          className={`px-5 py-2 rounded font-medium text-sm shadow transition-colors duration-150 bg-white text-blue-700 border border-blue-300 hover:bg-blue-50`}
                           aria-label="Previous Card"
                         >
                           Previous
                         </button>
                         <button
                           onClick={nextCard}
-                          disabled={currentCardIndex === filteredCards.length - 1}
-                          className={`px-5 py-2 rounded font-medium text-sm shadow transition-colors duration-150 ${currentCardIndex === filteredCards.length - 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                          // disabled={currentCardIndex === filteredCards.length - 1} // Loop instead of disable
+                          className={`px-5 py-2 rounded font-medium text-sm shadow transition-colors duration-150 bg-blue-600 text-white hover:bg-blue-700`}
                            aria-label="Next Card"
                         >
                           Next
