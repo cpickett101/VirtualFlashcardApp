@@ -1020,22 +1020,20 @@ and newlines preserved.","Category 1 Name","Subcategory 1.1"
                                 <div className="text-center text-gray-400 text-xs mt-4 group-hover:text-blue-500 flex-shrink-0">Click to flip</div>
                               </div>
 
-                              {/* Card Back */}
-                              <div className="card-back bg-blue-50 p-6 rounded-xl shadow-lg flex flex-col border border-blue-200">
-                                <div className="flex-grow flex items-center justify-center overflow-y-auto py-4"> {/* Added padding */}
-                                   {/* <<< APPLY CLASS HERE >>> */}
-                                   {/* Apply to the container div */}
-                                   <div className="text-base md:text-lg text-gray-900 preserve-whitespace px-4"> {/* Added preserve-whitespace and padding */}
-                                    {filteredCards[currentCardIndex].back.split('\n').map((line, index, arr) => (
-                                      // No need for class on each p if parent has it
-                                      <p key={index} className={index === arr.length - 1 ? '' : 'mb-2'}>{line || '\u00A0'}</p> // Render empty lines as non-breaking space
-                                    ))}
-                                   </div>
+                            {/* Card Back */}
+                            <div className="card-back bg-blue-50 p-6 rounded-xl shadow-lg flex flex-col border border-blue-200">
+                              {/* Change 1: Use max-height, remove center alignment, ensure scrolling works */}
+                              <div className="flex-grow flex flex-col overflow-y-auto max-h-[calc(100%-2rem)] py-2">
+                                {/* Change 2: Remove justify-center from parent and add overflow handling to this container */}
+                                <div className="text-base md:text-lg text-gray-900 preserve-whitespace px-4 overflow-y-auto">
+                                  {filteredCards[currentCardIndex].back.split('\n').map((line, index, arr) => (
+                                    <p key={index} className={index === arr.length - 1 ? '' : 'mb-2'}>{line || '\u00A0'}</p>
+                                  ))}
                                 </div>
-                                <div className="text-center text-gray-500 text-xs mt-4 group-hover:text-blue-600 flex-shrink-0">Click to flip back</div>
                               </div>
+                              {/* This stays the same */}
+                              <div className="text-center text-gray-500 text-xs mt-4 group-hover:text-blue-600 flex-shrink-0">Click to flip back</div>
                             </div>
-                          </div>
                            {/* Context Display Below Card - Removed as it's now on card face */}
                           {/* {filteredCards[currentCardIndex]?.subcategory && (
                                <p className="text-center text-xs text-gray-500 italic mb-4">
